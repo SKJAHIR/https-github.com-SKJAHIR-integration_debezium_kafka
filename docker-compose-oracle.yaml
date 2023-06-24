@@ -1,37 +1,48 @@
-version: '2'
+version: "3.7"
 services:
-  zookeeper:
-    image: quay.io/debezium/zookeeper:${DEBEZIUM_VERSION}
-    ports:
-     - 2181:2181
-     - 2888:2888
-     - 3888:3888
-  kafka:
-    image: quay.io/debezium/kafka:${DEBEZIUM_VERSION}
-    ports:
-     - 9092:9092
-    links:
-     - zookeeper
-    environment:
-     - ZOOKEEPER_CONNECT=zookeeper:2181
-  connect:
-    image: debezium/connect-with-oracle-jdbc:${DEBEZIUM_VERSION}
-    build:
-      context: debezium-with-oracle-jdbc
-      args:
-        DEBEZIUM_VERSION: ${DEBEZIUM_VERSION}
-    ports:
-     - 8083:8083
-     - 5005:5005
-    links:
-     - kafka
-    environment:
-     - BOOTSTRAP_SERVERS=kafka:9092
-     - GROUP_ID=1
-     - CONFIG_STORAGE_TOPIC=my_connect_configs
-     - OFFSET_STORAGE_TOPIC=my_connect_offsets
-     - STATUS_STORAGE_TOPIC=my_connect_statuses
-     - LD_LIBRARY_PATH=/instant_client
-     - KAFKA_DEBUG=true
-     - DEBUG_SUSPEND_FLAG=n
-     - JAVA_DEBUG_PORT=0.0.0.0:5005
+   postgres:
+     image: debezium/postgres:13
+     ports:
+       - 5432:5432
+     enironment:
+       - POSTGRES_USER=postgres
+       - POSTGRES_PASSWORD=postgres
+       - POSTGRES_DB=exampledb
+   zookeeper:
+     image: confluentinc/cp-zookeeper:5.5.3
+     environment:
+       ZOOKEEPER_CLIENT_PORT: 2181
+   kafka:
+     image: confluentinc/cp-enterprise-kafka:5.5.3
+     depends_on: [zookeeper]
+     environment:
+        KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+        KAFKA_ADVERTISED_LISTERNERS: PLAINTEXT://kafka:9092
+        KAFKA_BROKER_ID: 1
+        KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR:1
+        KAFKA_JMK_PORT: 9091
+     ports: 
+       - 9092: 9092
+   debezium:
+     image: debezium/connect:1.4
+     environment:
+       BOOTSTRAP_SERVERS: kafka:9092
+       GROUP_ID: 1
+       CONFIG_STORAGE_TOPIC:connect_configs
+       OFFSET_STORAGE_TOPIC: connect_offsets
+       KEY_CONVERTER: io.confluent.connect.avro.AvroConverter
+       VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
+       CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY: http://schema-registry:8081
+       CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY: http://schema-registry:8081
+       depends_on: [kafka]
+       ports:
+         - 8083: 8083
+   schema-registry:
+      image: confluentinc/cp-schema-registry:5.5.3
+      environment:
+         - SCHEMA_REGISTRY_KAFKA_CONNECTOR_URL=zookeeper:2181
+         - SCHEMA_REGISTRY_HOST_NAME=schema-registry 
+         - SCHEMA_REGISTRY_LISTENERS=http://chema-registry:8081,http://localhost:8081
+      ports:
+        - 8081:8081
+      depens_on: [zookeeper,kafka]               
