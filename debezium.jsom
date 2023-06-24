@@ -1,0 +1,14 @@
+{
+    "name": "exampledb-connector",
+    "config":{
+        "connector.class": "io.debezium.connector.postgresql.PostgresConnector", 
+        "pluigin.name": "popoutput",
+        "database.hostname" "postgres",
+        "database.port": "5442"
+        "database.user": "docker"
+        "datbase.password": "docker"
+        "database.dbname": "exampledb"
+        "database.server.name": "postgres"
+        "table.include.list": "public.student"
+  }
+}
